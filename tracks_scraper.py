@@ -54,44 +54,48 @@ def get_client():
 ### Main Script ###
 client = get_client()
 
-# find all tracks with footwork tag
-response = client.get('/tracks', q='footwork', limit=PAGE_SIZE,
-                    linked_partitioning=1)
-counter = 1
-# parse dictionary of response
-response_dict = response.fields()
-next_href = False
-if('next_href' in response_dict):
-	next_href = response_dict['next_href']
-if('collection' in response_dict):
-	results = response_dict['collection']
-	result_keys = results[0].keys()
-	data = pd.DataFrame(results)
-	data = data.drop(columns=['description'])
-	# write initial dataframe to file, overwriting any previous file
-	data.to_csv('footwork_tracks.csv')
-while (next_href):
-	counter = counter + 1
-	response_dict = requests.get(next_href).json()
+try:
+	# find all tracks with footwork tag
+	response = client.get('/tracks', q='footwork', limit=PAGE_SIZE,
+	                    linked_partitioning=1)
+	counter = 1
+	# parse dictionary of response
+	response_dict = response.fields()
+	next_href = False
 	if('next_href' in response_dict):
 		next_href = response_dict['next_href']
-	else:
-		next_href = False
 	if('collection' in response_dict):
 		results = response_dict['collection']
 		result_keys = results[0].keys()
 		data = pd.DataFrame(results)
 		data = data.drop(columns=['description'])
-		# append next set of results to file
-		data.to_csv('footwork_tracks.csv', mode='a', header=False)
-		logging.info('Got ' + str(len(data))) + ' results from request ' + str(counter)
-	else:
-		# Now, we can log to the root logger, or any other logger. First the root...
-		logging.info('No collection of results returned')
-		#print("No collection of results returned")
-	logging.info('Sleeping ' + str(SLEEP_TIME) + ' seconds at ' + str(datetime.now()))
-	#print('Sleeping ' + SLEEP_TIME + ' seconds at ' + str(datetime.now()))
-	sleep(SLEEP_TIME)
+		# write initial dataframe to file, overwriting any previous file
+		data.to_csv('footwork_tracks.csv')
+		logging.info('Got ' + str(len(data)) + ' results from first request ')
+	while (next_href):
+		counter = counter + 1
+		response_dict = requests.get(next_href).json()
+		if('next_href' in response_dict):
+			next_href = response_dict['next_href']
+		else:
+			next_href = False
+		if('collection' in response_dict):
+			results = response_dict['collection']
+			result_keys = results[0].keys()
+			data = pd.DataFrame(results)
+			data = data.drop(columns=['description'])
+			# append next set of results to file
+			data.to_csv('footwork_tracks.csv', mode='a', header=False)
+			logging.info('Got ' + str(len(data)) + ' results from request ' + str(counter))
+		else:
+			# Now, we can log to the root logger, or any other logger. First the root...
+			logging.info('No collection of results returned')
+			#print("No collection of results returned")
+		logging.info('Sleeping ' + str(SLEEP_TIME) + ' seconds at ' + str(datetime.now()))
+		#print('Sleeping ' + SLEEP_TIME + ' seconds at ' + str(datetime.now()))
+		sleep(SLEEP_TIME)
+	logging.info('All tracks pulled. Finishing at ' + str(datetime.now()))
 
-
+except Exception as e:
+	logging.info('Error from API request: ' + str(e))
 
