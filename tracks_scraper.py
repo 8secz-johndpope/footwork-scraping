@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import datetime
 from time import sleep
 import logging
+import pickle
 
 ####################################################################
 
@@ -21,8 +22,8 @@ APP_VERSION = '1481046241'
 # page size of 200 seems to work nicely, even though the API
 # seems to return 180-200 results per request
 PAGE_SIZE = 200
-# Sleep time between requests - 2 seconds so as to not overload the server
-SLEEP_TIME = 2
+# Sleep time between requests - 4 seconds so as to not overload the server
+SLEEP_TIME = 4
 
 ####################################################################
 
@@ -74,7 +75,10 @@ try:
 		logging.info('Got ' + str(len(data)) + ' results from first request ')
 	while (next_href):
 		counter = counter + 1
-		response_dict = requests.get(next_href).json()
+		logging.info('Next request to: ' + next_href)
+		response = requests.get(next_href)
+		pickle.dump( response, open( "last_API_response.p", "wb" ) )
+		response_dict = response.json()
 		if('next_href' in response_dict):
 			next_href = response_dict['next_href']
 		else:
