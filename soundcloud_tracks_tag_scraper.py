@@ -25,7 +25,7 @@ PAGE_SIZE = 200
 # Sleep time between requests - 4 seconds so as to not overload the server
 SLEEP_TIME = 4
 # file to write the resulting data
-outfileName = 'soundcloud_footwork_tracks_tag.csv'
+outfileName = './data/soundcloud_footwork_tracks_tag.csv'
 
 ####################################################################
 
@@ -33,7 +33,7 @@ outfileName = 'soundcloud_footwork_tracks_tag.csv'
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     datefmt='%m-%d %H:%M',
-                    filename='./soundcloud_footwork_tracks_tag.log',
+                    filename='./logs/soundcloud_footwork_tracks_tag.log',
                     filemode='w')
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console = logging.StreamHandler()
