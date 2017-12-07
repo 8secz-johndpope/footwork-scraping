@@ -10,6 +10,18 @@ import logging
 import csv
 from pprint import pprint as pp
 
+
+####################################################################
+
+# Starting Point - 0 if starting from the beginning, or the index of
+# the last user in sorted_user_id_list if we were interrupted
+STARTING_INDEX = 550
+
+# Sleep time between requests - 4 seconds so as to not overload the server
+SLEEP_TIME = 4
+inFileName = './data/soundcloud_footwork_tracks_tag.csv'
+outFileName = './data/soundcloud_footwork_artists_from_tracks_v2.csv'
+
 ####################################################################
 
 # Please be nice with this!
@@ -19,13 +31,6 @@ MAGIC_CLIENT_ID = 'b45b1aa10f1ac2941910a7f0d10f8e28'
 
 AGGRESSIVE_CLIENT_ID = 'OmTFHKYSMLFqnu2HHucmclAptedxWXkq'
 APP_VERSION = '1481046241'
-
-####################################################################
-
-# Sleep time between requests - 4 seconds so as to not overload the server
-SLEEP_TIME = 4
-inFileName = './data/soundcloud_footwork_tracks_tag.csv'
-outFileName = './data/soundcloud_footwork_artists_from_tracks.csv'
 
 ####################################################################
 
@@ -55,12 +60,32 @@ def get_client():
     return client
 
 def get_user_dict_from_client(client, user_id):
-	query = '/users/' + str(user_id)
-	response = client.get(query)
-	user = response.fields()
-	user['description'] = user['description'].replace('\n', ' ')
-			.encode("ascii", errors="ignore").decode().strip()
-	return user
+    query = '/users/' + str(user_id)
+    response = client.get(query)
+    user = response.fields()
+    try:
+### Tried to strip user descriptions down to simple characters but it still broke
+### Maybe on commas?
+#        user['description'] = user['description'].replace('\n', ' ') \
+#                .encode("ascii", errors="ignore").decode().strip()
+        # remove the description field in place, b/c it is causing csv issues
+        user.pop('description', 0)
+    except:
+        logging.info('user had no description')
+    return user
+
+def get_artists_and_append_to_csv(user_id_list, outFileWriter, starting_idx):
+    # Interate through the entire list of artists
+    for i, user_id in enumerate(user_id_list[starting_idx:]):
+        idx = i + starting_idx
+        logging.info('Sending request # ' + str(idx) + ' for user_id: ' 
+                + str(user_id))
+        user = get_user_dict_from_client(client, user_id)
+        outFileWriter.writerow(user)
+        logging.info('Successfully recorded user in csv; ' + 
+            'Sleeping ' + str(SLEEP_TIME) + ' seconds at ' + str(datetime.now()))
+        sleep(SLEEP_TIME)
+    logging.info('All artists pulled. Finishing at ' + str(datetime.now()))
 
 ### Main Script ###
 client = get_client()
@@ -77,25 +102,34 @@ aggregated = grouped.agg(['sum', 'count'])
 aggregated.columns = aggregated.columns.droplevel()
 sorted_artist_data = aggregated.sort_values(by='sum', ascending=False)
 sorted_user_id_list = list(sorted_artist_data.index)
-with open(outFileName, 'w') as outFile:
-	try:
-		# run the first query and set up the csv file with a header row
-		user = get_user_dict_from_client(client, sorted_user_id_list.pop(0))
-	    outFileWriter = csv.DictWriter(outFile, user.keys())
-	    outFileWriter.writeheader()
-	    outFileWriter.writerow(user)
-	    logging.info('First Entry: user_id: ' + user['id'])
-	    # Interate through the entire list of artists
-	    for i, user_id in enumerate(sorted_user_id_list):
-	    	logging.info('Sending request # ' + str(i) + ' for user_id: ' 
-	    			+ str(user_id))
-	    	user = get_user_dict_from_client(client, user_id)
-	    	outFileWriter.writerow(user)
-	    	logging.info('Successfully recorded user in csv; ' + 
-	    		'Sleeping ' + str(SLEEP_TIME) + ' seconds at ' + str(datetime.now()))
-	    	sleep(SLEEP_TIME)
-	    logging.info('All artists pulled. Finishing at ' + str(datetime.now()))
-    
-	except Exception as e:
-		logging.info('Error from API request: ' + str(e))
 
+if (0 == STARTING_INDEX):
+    with open(outFileName, 'w') as outFile:
+        try:
+            # run the first query and set up the csv file with a header row
+            user = get_user_dict_from_client(client, sorted_user_id_list[0])
+            outFileWriter = csv.DictWriter(outFile, sorted(user.keys()))
+            outFileWriter.writeheader()
+            outFileWriter.writerow(user)
+            logging.info('First Entry: user_id: ' + str(user['id']))
+            get_artists_and_append_to_csv(sorted_user_id_list, outFileWriter, 1)
+            # # Interate through the entire list of artists
+            # for i, user_id in enumerate(sorted_user_id_list):
+            #     logging.info('Sending request # ' + str(i) + ' for user_id: ' 
+            #             + str(user_id))
+            #     user = get_user_dict_from_client(client, user_id)
+            #     outFileWriter.writerow(user)
+            #     logging.info('Successfully recorded user in csv; ' + 
+            #         'Sleeping ' + str(SLEEP_TIME) + ' seconds at ' + str(datetime.now()))
+            #     sleep(SLEEP_TIME)
+            # logging.info('All artists pulled. Finishing at ' + str(datetime.now()))
+        except Exception as e:
+            logging.info('Error from API request: ' + str(e))
+else:
+    with open(outFileName, 'a') as outFile:
+        try:
+            user = get_user_dict_from_client(client, sorted_user_id_list[0])
+            outFileWriter = csv.DictWriter(outFile, sorted(user.keys()))
+            get_artists_and_append_to_csv(sorted_user_id_list, outFileWriter, STARTING_INDEX)
+        except Exception as e:
+            logging.info('Error from API request: ' + str(e))
